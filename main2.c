@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <wiringPi.h>
 #include <wiringSerial.h>
+#include <time.h>
 
 
 //Serial pc(USBTX, USBRX);
@@ -73,7 +74,7 @@ void sendData(char *p, int size, int delay){
 		fprintf (stderr, "Unable to open serial device: %s\n", strerror (errno));
 	}
     //wait_us(delay);
-	delay(delay);
+	delay(delay/1000);
     for(int i = 0; i < size; i++){
         //pc.printf("%c", *p);
         serialPutchar(fd, *p);
@@ -120,34 +121,40 @@ void initData(int packetType, char *p){
     }
 }
 
-Timer t;                                          // init timer t;
+//Timer t;                                          // init timer t;
 
 void runNotifyDoor(){
 
+	clock_t t_start, t_end;
     if(statusDoor == CLOSE){
         //if(doorOpened){
         if (digitalRead(17) == 1) {
             statusDoor = OPEN;          // if(door open) => statusDoor = OPEN
             //pc.printf("OPEN\r\n");
-            t.start();                  // start read timer
+            //t.start();                  // start read timer
+			t_start = clock();
+			
         }
         //alarm = TURN_OFF;               // door close -> turn off Alarm
-        digitalWrite(24, 0);
+        digitalWrite(24, 1);
     }
 
     if(statusDoor == OPEN){
         //if(doorOpened){
         if (digitalRead(17) == 1) {
+			t_end = clock();
+			double time_taken = double(t_end - t_start) / double(CLOCKS_PER_SEC);
             if(t.read_ms() > timeOut){          // if(door open and time out)
                 char packetSend[sizeOfNotifyDoorOpen];
-                initData(NOTIFI_DOOR_OPEN, packetSend, t.read_ms());
+                //initData(NOTIFI_DOOR_OPEN, packetSend, t.read_ms());
+				initData(NOTIFI_DOOR_OPEN, packetSend, time_taken*1000);
                 sendData(packetSend, sizeOfNotifyDoorOpen);            //send packet NotifyDoorOpen: timeOut
                 //pc.printf("TIME OUT\r\n");
-                t.stop();                                               // stop and reset timer
-                t.reset();
+                //t.stop();                                               // stop and reset timer
+                //t.reset();
                 if(enableAlarm == 1){                                    //turn on alarm
                     //alarm = TURN_ON;
-                    digitalWrite(24, 1);
+                    digitalWrite(24, 0);
                 }
                 statusDoor = OPEN_TIMEOUT;                               // update door status
                 return;
@@ -156,16 +163,19 @@ void runNotifyDoor(){
 
         //if(!doorOpened){
         if (digitalRead(17) == 0) {
+			t_end = clock();
+			double time_taken = double(t_end - t_start) / double(CLOCKS_PER_SEC);
             if(t.read_ms() <= timeOut){         //door close - time in
                 char packetSend[sizeOfNotifyDoorOpen];
-                initData(NOTIFI_DOOR_OPEN, packetSend, t.read_ms());          //send packet open the door
+                //initData(NOTIFI_DOOR_OPEN, packetSend, t.read_ms());          //send packet open the door
+				initData(NOTIFI_DOOR_OPEN, packetSend, time_taken*1000);
                 sendData(packetSend, sizeOfNotifyDoorOpen);
                 //wait_ms(2000);
                 delay(2000);
                 //pc.printf("CLOSE\r\n");
                 statusDoor = CLOSE;
-                t.stop();                                                      // stop and reset timer
-                t.reset();
+                //t.stop();                                                      // stop and reset timer
+                //t.reset();
                 return;
             }
         }
@@ -180,11 +190,11 @@ void runNotifyDoor(){
 
         if(enableAlarm == 1){
             //alarm = TURN_ON;
-            digitalWrite(24, 1);
+            digitalWrite(24, 0);
         }
         if(enableAlarm == 0){
             //alarm = TURN_OFF;
-            digitalWrite(24, 0);
+            digitalWrite(24, 1);
         }
     }
 }
@@ -205,11 +215,12 @@ int main() {
     //static Timer t;                                 // init timer t
 	
     //alarm = TURN_OFF;                               // turn off alarm
-	digitalWrite(24, 0);
+	digitalWrite(24, 1);
 
     while(1) {                                       // loop
         runNotifyDoor();                             // check door status
         //if(pc.readable()){
+		if (serialDataAvail(fd)) {
             uint8_t array[9] = {0};
             //char x =  pc.getc();
 			char x = serialGetchar(fd);
@@ -250,7 +261,7 @@ int main() {
                     }
                 }
             }
-        //}
+        }
     }
 }
 
@@ -259,7 +270,7 @@ int main() {
 
 
 
-
+/*
 int main() {
 
     int fd;
@@ -279,3 +290,4 @@ int main() {
 
     return 0;
 }
+*/

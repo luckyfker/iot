@@ -7,6 +7,7 @@
 #include <wiringPi.h>
 #include <wiringSerial.h>
 #include <time.h>
+#include <stdint.h>
 
 
 //Serial pc(USBTX, USBRX);
@@ -39,17 +40,19 @@ int timeOut = 10000;                                    //time out is 10 000ms
 bool TURN_ON = 0;
 bool TURN_OFF = 1;
 
-//GPIO
-wiringPiSetupGpio();
+void initGPIO() {
+	//GPIO
+	wiringPiSetupGpio();
 
-//DigitalIn  doorOpened(P0_17);                           //PO_17 Nordic
-pinMode(17, INPUT);           // Sensor Door PO_23
+	//DigitalIn  doorOpened(P0_17);                           //PO_17 Nordic
+	pinMode(17, INPUT);           // Sensor Door PO_23
 
 
-//DigitalOut led(LED3);                                     //P0_23 Nordic
-//DigitalOut alarm(LED4);                                   //P0_24 Nordic
-pinMode(23, OUTPUT);
-pinMode(24, OUTPUT);
+	//DigitalOut led(LED3);                                     //P0_23 Nordic
+	//DigitalOut alarm(LED4);                                   //P0_24 Nordic
+	pinMode(23, OUTPUT);
+	pinMode(24, OUTPUT);
+}
 
 
 int statusDoor = CLOSE;
@@ -68,7 +71,7 @@ void sendData(char *p, int size){
     }
 }
 
-void sendData(char *p, int size, int delay){
+void sendData2(char *p, int size, int delay){
 	int fd;
 	if((fd = serialOpen ("/dev/ttyS0", 9600)) < 0 ){
 		fprintf (stderr, "Unable to open serial device: %s\n", strerror (errno));
@@ -82,7 +85,7 @@ void sendData(char *p, int size, int delay){
     }
 }
 
-void initData(int packetType, char *p, int timeOpened){
+void initData2(int packetType, char *p, int timeOpened){
 if(packetType == NOTIFI_DOOR_OPEN ){
         *p = sync;  p++;                      //sync
         *p = opCode;    p++;                  //opCode
@@ -124,7 +127,6 @@ void initData(int packetType, char *p){
 //Timer t;                                          // init timer t;
 
 void runNotifyDoor(){
-
 	clock_t t_start, t_end;
     if(statusDoor == CLOSE){
         //if(doorOpened){
@@ -147,7 +149,7 @@ void runNotifyDoor(){
             if(t.read_ms() > timeOut){          // if(door open and time out)
                 char packetSend[sizeOfNotifyDoorOpen];
                 //initData(NOTIFI_DOOR_OPEN, packetSend, t.read_ms());
-				initData(NOTIFI_DOOR_OPEN, packetSend, time_taken*1000);
+				initData2(NOTIFI_DOOR_OPEN, packetSend, time_taken*1000);
                 sendData(packetSend, sizeOfNotifyDoorOpen);            //send packet NotifyDoorOpen: timeOut
                 //pc.printf("TIME OUT\r\n");
                 //t.stop();                                               // stop and reset timer
@@ -168,7 +170,7 @@ void runNotifyDoor(){
             if(t.read_ms() <= timeOut){         //door close - time in
                 char packetSend[sizeOfNotifyDoorOpen];
                 //initData(NOTIFI_DOOR_OPEN, packetSend, t.read_ms());          //send packet open the door
-				initData(NOTIFI_DOOR_OPEN, packetSend, time_taken*1000);
+				initData2(NOTIFI_DOOR_OPEN, packetSend, time_taken*1000);
                 sendData(packetSend, sizeOfNotifyDoorOpen);
                 //wait_ms(2000);
                 delay(2000);
@@ -203,7 +205,7 @@ void runNotifyDoor(){
 
 int main() {
     //pc.baud(9600);                                  //baurate is 9600
-	
+	initGPIO();
 	int fd;
 	if((fd = serialOpen ("/dev/ttyS0", 9600)) < 0 ){
 		fprintf (stderr, "Unable to open serial device: %s\n", strerror (errno));
@@ -257,7 +259,7 @@ int main() {
 
                         char packetSend[sizeOfCheckNodeOnline_Response];     // init CheckNodeOnline Response  packet
                         initData(CHECK_NODE_ONLINE_RESPONSE, packetSend);    // insert data for packet
-                        sendData(packetSend, sizeOfCheckNodeOnline_Response, doorId * 100);     // send CheckNodeOnline Response packet
+                        sendData2(packetSend, sizeOfCheckNodeOnline_Response, doorId * 100);     // send CheckNodeOnline Response packet
                     }
                 }
             }
